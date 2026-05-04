@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>IA Predictor de Acciones</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Segoe UI', sans-serif; background: #0d1117; color: #e6edf3; min-height: 100vh; }
+  header { background: #161b22; border-bottom: 1px solid #30363d; padding: 20px 40px; display: flex; align-items: center; gap: 16px; }
+  header h1 { font-size: 1.4rem; color: #58a6ff; }
+  .badge { background: #238636; color: #fff; padding: 4px 10px; border-radius: 20px; font-size: 0.75rem; }
+  .container { max-width: 1100px; margin: 0 auto; padding: 30px 20px; }
+  .search-bar { display: flex; gap: 12px; margin-bottom: 30px; flex-wrap: wrap; }
+  .search-bar input { flex: 1; min-width: 200px; padding: 12px 18px; border-radius: 8px; border: 1px solid #30363d; background: #161b22; color: #e6edf3; font-size: 1rem; }
+  .search-bar button { padding: 12px 28px; border-radius: 8px; border: none; background: #238636; color: #fff; font-size: 1rem; cursor: pointer; font-weight: 600; transition: background 0.2s; }
+  .search-bar button:hover { background: #2ea043; }
+  .acciones-rapidas { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 30px; }
+  .chip { padding: 6px 14px; border-radius: 20px; border: 1px solid #30363d; background: #161b22; color: #8b949e; cursor: pointer; font-size: 0.85rem; transition: all 0.2s; }
+  .chip:hover { border-color: #58a6ff; color: #58a6ff; }
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 30px; }
+  .card { background: #161b22; border: 1px solid #30363d; border-radius: 12px; padding: 20px; }
+  .card .label { font-size: 0.8rem; color: #8b949e; margin-bottom: 6px; }
+  .card .value { font-size: 1.6rem; font-weight: 700; }
+  .card.señal .value { font-size: 1.3rem; }
+  .COMPRAR { color: #3fb950; }
+  .VENDER { color: #f85149; }
+  .ESPERAR { color: #d29922; }
+  .chart-box { background: #161b22; border: 1px solid #30363d; border-radius: 12px; padding: 24px; margin-bottom: 24px; }
+  .chart-box h3 { margin-bottom: 16px; color: #8b949e; font-size: 0.95rem; }
+  .loading { text-align: center; padding: 60px; color: #8b949e; font-size: 1.1rem; display: none; }
+  .spinner { width: 40px; height: 40px; border: 3px solid #30363d; border-top-color: #58a6ff; border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 16px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .error { background: #2d1b1b; border: 1px solid #f85149; border-radius: 8px; padding: 16px; color: #f85149; margin-bottom: 20px; display: none; }
+  .tabla { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+  .tabla th { background: #0d1117; padding: 10px 14px; text-align: left; color: #8b949e; border-bottom: 1px solid #30363d; }
+  .tabla td { padding: 10px 14px; border-bottom: 1px solid #21262d; }
+  .tabla tr:hover td { background: #161b22; }
+  .tabla-wrap { max-height: 320px; overflow-y: auto; }
+
+  /* Responsive Adjustments */
+  @media (max-width: 768px) {
+    header { padding: 15px 20px; flex-direction: column; text-align: center; }
+    .container { padding: 15px; }
+    .search-bar { flex-direction: column; }
+    .search-bar button { width: 100%; }
+    .cards { grid-template-columns: 1fr 1fr; }
+    .card .value { font-size: 1.2rem; }
+    .chart-box { padding: 15px; }
+    .acciones-rapidas { justify-content: center; }
+  }
+
+  @media (max-width: 480px) {
+    .cards { grid-template-columns: 1fr; }
+    header h1 { font-size: 1.1rem; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <span style="font-size:1.6rem">📈</span>
+  <h1>IA Predictor de Acciones</h1>
+  <span class="badge">ML Powered</span>
+</header>
+
+<div class="container">
+
+  <div class="search-bar">
+    <input id="tickerInput" type="text" placeholder="Ingresa símbolo: AAPL, TSLA, MSFT..." value="AAPL" />
+    <button onclick="analizar()">🔍 Analizar</button>
+  </div>
+
+  <div class="acciones-rapidas">
+    <span class="label" style="color:#8b949e;font-size:0.8rem;align-self:center;">Acciones rápidas:</span>
+    <span class="chip" onclick="analizarTicker('AAPL')">🍎 Apple</span>
+    <span class="chip" onclick="analizarTicker('TSLA')">⚡ Tesla</span>
+    <span class="chip" onclick="analizarTicker('MSFT')">🪟 Microsoft</span>
+    <span class="chip" onclick="analizarTicker('AMZN')">📦 Amazon</span>
+    <span class="chip" onclick="analizarTicker('GOOGL')">🔍 Google</span>
+    <span class="chip" onclick="analizarTicker('NVDA')">🎮 Nvidia</span>
+    <span class="chip" onclick="analizarTicker('META')">👁️ Meta</span>
+  </div>
+
+  <div class="error" id="error">❌ <span id="errorMsg"></span></div>
+  <div class="loading" id="loading">
+    <div class="spinner"></div>
+    Entrenando modelo IA, descargando datos... esto toma ~30 segundos
+  </div>
+
+  <div id="resultado" style="display:none">
+    <div class="cards">
+      <div class="card">
+        <div class="label">Acción analizada</div>
+        <div class="value" id="rTicker" style="color:#58a6ff"></div>
+      </div>
+      <div class="card">
+        <div class="label">Precio actual (USD)</div>
+        <div class="value" id="rPrecio"></div>
+      </div>
+      <div class="card señal">
+        <div class="label">Señal para mañana</div>
+        <div class="value" id="rSeñal"></div>
+      </div>
+      <div class="card">
+        <div class="label">Prob. subida</div>
+        <div class="value COMPRAR" id="rProbSube"></div>
+      </div>
+      <div class="card">
+        <div class="label">Capital con IA (desde $10k)</div>
+        <div class="value" id="rCapitalIA"></div>
+      </div>
+      <div class="card">
+        <div class="label">Capital Buy & Hold</div>
+        <div class="value" id="rCapitalBH"></div>
+      </div>
+    </div>
+
+    <div class="chart-box">
+      <h3>📊 Evolución del capital — IA vs Buy & Hold</h3>
+      <canvas id="chartCapital" height="100"></canvas>
+    </div>
+
+    <div class="chart-box">
+      <h3>🕯️ Precio histórico con señales</h3>
+      <canvas id="chartPrecio" height="100"></canvas>
+    </div>
+
+    <div class="chart-box">
+      <h3>📋 Historial de señales</h3>
+      <div class="tabla-wrap">
+        <table class="tabla">
+          <thead><tr><th>Fecha</th><th>Precio</th><th>Señal</th><th>Prob. Sube</th><th>Prob. Baja</th><th>Capital</th></tr></thead>
+          <tbody id="tablaBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+let chartCapital = null, chartPrecio = null;
+
+function analizarTicker(t) {
+  document.getElementById('tickerInput').value = t;
+  analizar();
+}
+
+async function analizar() {
+  const ticker = document.getElementById('tickerInput').value.trim().toUpperCase();
+  if (!ticker) return;
+
+  document.getElementById('resultado').style.display = 'none';
+  document.getElementById('error').style.display = 'none';
+  document.getElementById('loading').style.display = 'block';
+
+  try {
+    const host = window.location.hostname || 'localhost';
+    const url = host === 'localhost' || host === '127.0.0.1' || host.startsWith('192.168.') 
+                ? `http://${host}:5000/analizar?ticker=${ticker}`
+                : `/analizar?ticker=${ticker}`;
+    const res = await fetch(url);
+    if (!res.ok) throw new Error('Error del servidor');
+    const data = await res.json();
+    mostrarResultados(data);
+  } catch(e) {
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('error').style.display = 'block';
+    document.getElementById('errorMsg').textContent = 
+      'Error al procesar la solicitud. Si estás en Vercel, el tiempo límite podría haberse excedido.';
+  }
+}
+
+function mostrarResultados(data) {
+  document.getElementById('loading').style.display = 'none';
+  document.getElementById('resultado').style.display = 'block';
+
+  document.getElementById('rTicker').textContent = data.ticker;
+  document.getElementById('rPrecio').textContent = `$${data.precio_actual.toLocaleString()}`;
+  
+  const señal = document.getElementById('rSeñal');
+  señal.textContent = data.señal_hoy === 'COMPRAR' ? '💚 COMPRAR' : data.señal_hoy === 'VENDER' ? '🔴 VENDER' : '🟡 ESPERAR';
+  señal.className = `value ${data.señal_hoy}`;
+  
+  document.getElementById('rProbSube').textContent = `${(data.prob_sube * 100).toFixed(1)}%`;
+  
+  const iaColor = data.capital_modelo >= data.capital_bh ? '#3fb950' : '#f85149';
+  document.getElementById('rCapitalIA').innerHTML = `<span style="color:${iaColor}">$${data.capital_modelo.toLocaleString()}</span>`;
+  document.getElementById('rCapitalBH').textContent = `$${data.capital_bh.toLocaleString()}`;
+
+  // Gráfico capital
+  const fechas = data.historial.map(d => d.fecha);
+  const capitalIA = data.historial.map(d => d.capital);
+  const capitalBH = calcularBH(data.historial);
+
+  if (chartCapital) chartCapital.destroy();
+  chartCapital = new Chart(document.getElementById('chartCapital'), {
+    type: 'line',
+    data: {
+      labels: fechas,
+      datasets: [
+        { label: 'IA Model', data: capitalIA, borderColor: '#58a6ff', borderWidth: 2, pointRadius: 0, tension: 0.3 },
+        { label: 'Buy & Hold', data: capitalBH, borderColor: '#8b949e', borderWidth: 1.5, pointRadius: 0, borderDash: [5,5], tension: 0.3 }
+      ]
+    },
+    options: { responsive: true, plugins: { legend: { labels: { color: '#e6edf3' } } },
+      scales: { x: { ticks: { color: '#8b949e', maxTicksLimit: 10 }, grid: { color: '#21262d' } },
+                 y: { ticks: { color: '#8b949e', callback: v => '$' + v.toLocaleString() }, grid: { color: '#21262d' } } } }
+  });
+
+  // Gráfico precio con señales
+  const precios = data.historial.map(d => d.precio);
+  const compras = data.historial.map(d => d.señal === 'COMPRAR' ? d.precio : null);
+  const ventas = data.historial.map(d => d.señal === 'VENDER' ? d.precio : null);
+
+  if (chartPrecio) chartPrecio.destroy();
+  chartPrecio = new Chart(document.getElementById('chartPrecio'), {
+    type: 'line',
+    data: {
+      labels: fechas,
+      datasets: [
+        { label: 'Precio', data: precios, borderColor: '#e6edf3', borderWidth: 1.5, pointRadius: 0, tension: 0.2 },
+        { label: 'COMPRAR', data: compras, borderColor: 'transparent', pointBackgroundColor: '#3fb950', pointRadius: 5, type: 'scatter' },
+        { label: 'VENDER', data: ventas, borderColor: 'transparent', pointBackgroundColor: '#f85149', pointRadius: 5, type: 'scatter' }
+      ]
+    },
+    options: { responsive: true, plugins: { legend: { labels: { color: '#e6edf3' } } },
+      scales: { x: { ticks: { color: '#8b949e', maxTicksLimit: 10 }, grid: { color: '#21262d' } },
+                 y: { ticks: { color: '#8b949e', callback: v => '$' + v }, grid: { color: '#21262d' } } } }
+  });
+
+  // Tabla
+  const tbody = document.getElementById('tablaBody');
+  const activos = data.historial.filter(d => d.señal !== 'ESPERAR').slice(-50).reverse();
+  tbody.innerHTML = activos.map(d => `
+    <tr>
+      <td>${d.fecha}</td>
+      <td>$${d.precio}</td>
+      <td class="${d.señal}">${d.señal === 'COMPRAR' ? '💚' : '🔴'} ${d.señal}</td>
+      <td>${(d.prob_sube * 100).toFixed(1)}%</td>
+      <td>${(d.prob_baja * 100).toFixed(1)}%</td>
+      <td>$${d.capital.toLocaleString()}</td>
+    </tr>`).join('');
+}
+
+function calcularBH(historial) {
+  const p0 = historial[0].precio;
+  return historial.map(d => (10000 * d.precio / p0).toFixed(2));
+}
+</script>
+</body>
+</html>
