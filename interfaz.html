@@ -37,6 +37,23 @@
   .tabla td { padding: 10px 14px; border-bottom: 1px solid #21262d; }
   .tabla tr:hover td { background: #161b22; }
   .tabla-wrap { max-height: 320px; overflow-y: auto; }
+
+  /* Responsive Adjustments */
+  @media (max-width: 768px) {
+    header { padding: 15px 20px; flex-direction: column; text-align: center; }
+    .container { padding: 15px; }
+    .search-bar { flex-direction: column; }
+    .search-bar button { width: 100%; }
+    .cards { grid-template-columns: 1fr 1fr; }
+    .card .value { font-size: 1.2rem; }
+    .chart-box { padding: 15px; }
+    .acciones-rapidas { justify-content: center; }
+  }
+
+  @media (max-width: 480px) {
+    .cards { grid-template-columns: 1fr; }
+    header h1 { font-size: 1.1rem; }
+  }
 </style>
 </head>
 <body>
@@ -139,8 +156,8 @@ async function analizar() {
   document.getElementById('loading').style.display = 'block';
 
   try {
-    // Llamar al modelo Python via fetch a un servidor local
-    const res = await fetch(`http://localhost:5000/analizar?ticker=${ticker}`);
+    const host = window.location.hostname || 'localhost';
+    const res = await fetch(`http://${host}:5000/analizar?ticker=${ticker}`);
     if (!res.ok) throw new Error('Error del servidor');
     const data = await res.json();
     mostrarResultados(data);
