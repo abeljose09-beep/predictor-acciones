@@ -2,5 +2,5 @@ yfinance
 pandas
 numpy
 scikit-learn
-flask
-flask-cors
+streamlit
+plotly
