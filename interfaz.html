@@ -2,6 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>IA Predictor de Acciones</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <style>
@@ -157,7 +158,11 @@ async function analizar() {
 
   try {
     const host = window.location.hostname || 'localhost';
-    const res = await fetch(`http://${host}:5000/analizar?ticker=${ticker}`);
+    // Si estamos en localhost, usamos el puerto 5000. En Railway, el puerto se maneja automáticamente.
+    const url = host === 'localhost' || host === '127.0.0.1' || host.startsWith('192.168.') 
+                ? `http://${host}:5000/analizar?ticker=${ticker}`
+                : `/analizar?ticker=${ticker}`;
+    const res = await fetch(url);
     if (!res.ok) throw new Error('Error del servidor');
     const data = await res.json();
     mostrarResultados(data);
